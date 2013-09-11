@@ -63,7 +63,7 @@ wwcuts_t pass_all = PASSED_Skim3; // Baseline, Tight+Fakeable, no MET requiremen
 bool applyJEC = true;
 bool lockToCoreSelectors = false;
 bool applyFastJetCorrection = false;
-bool selectBestCandidate = true; // select only one hypothesis per event with the two most energetic leptons
+bool selectBestCandidate = true; // select only one hypothesis per event with the two most energetic leptons 
 bool useLHeleId = false;
 int useMVAeleId = 1;//zero means off, otherwise it's the mva version
 bool useMVAmuId = false;
@@ -182,6 +182,11 @@ bool hypoSync(int i_hyp, double weight, bool realData)
   if ( TMath::Abs(cms2.hyp_ll_id()[i_hyp]) == 11 && 
   	   !goodElectronIsolated(cms2.hyp_ll_index()[i_hyp], useLHeleId, useMVAeleId, egammaMvaEleEstimator, lockToCoreSelectors) ) return false;
   monitor.count(cms2,type,"lepton id/iso pt20/10",weight);
+  
+
+  //
+  if (numberOfExtraLeptons(i_hyp,10, useLHeleId, useMVAeleId, egammaMvaEleEstimator, useMVAmuId, muonIdMVA,muonMVAEstimator,  nullMu, nullEle)>0) return false;
+  monitor.count(cms2,type,"extra lepton veto",weight);
 
 
   //
@@ -202,30 +207,28 @@ bool hypoSync(int i_hyp, double weight, bool realData)
 
 
   // 
-  if ( minmet(i_hyp) < 20 )  return false; 
-  monitor.count(cms2,type,"minMet > 20 GeV",weight);
+  if ( (type == EM || type == ME) && minmet(i_hyp) < 20 )  return false; 
+  monitor.count(cms2,type,"minMet > 20 GeV for SF",weight);
 
+
+  // 
+  if ( (type == EE || type == MM) && minmet(i_hyp) < 40 )  return false; 
+  monitor.count(cms2,type,"minMet > 40 GeV for DF",weight);
 
   //
-  int njets = numberOfJets(i_hyp, applyJEC, jet_corrector_pfL1FastJetL2L3); 
-  std::vector<JetPair> sortedJets = getJets(jetType(), i_hyp, 15.0, 4.7, applyJEC, jet_corrector_pfL1FastJetL2L3, true, false); // new cut
+  int njets = numberOfJets(i_hyp, applyJEC, jet_corrector_pfL1FastJetL2L3);
+  std::vector<JetPair> sortedJets = getJets(jetType(), i_hyp, 15.0, 4.7, applyJEC, jet_corrector_pfL1FastJetL2L3, true, false);
   if (cms2.hyp_type().at(i_hyp)!=1 && cms2.hyp_type().at(i_hyp)!=2 && sortedJets.size()>0) {
- 	  if (njets>= 2 && fabs(ROOT::Math::VectorUtil::DeltaPhi(sortedJets[0].first+sortedJets[1].first,cms2.hyp_p4().at(i_hyp)))>=165.*TMath::Pi()/180.) return false;
-  } 
-  monitor.count(cms2,type,"Jet DPhi only for 2jet bin",weight);
-  
+      if (njets<2 && fabs(ROOT::Math::VectorUtil::DeltaPhi(sortedJets[0].first,cms2.hyp_p4().at(i_hyp)))>=165.*TMath::Pi()/180.) return false;
+      else if (njets>= 2 && fabs(ROOT::Math::VectorUtil::DeltaPhi(sortedJets[0].first+sortedJets[1].first,cms2.hyp_p4().at(i_hyp)))>=165.*TMath::Pi()/180.) return false;
+  }
+  monitor.count(cms2,type,"Jet DPhi",weight);
 
   //
   if (numberOfSoftMuons(i_hyp,true)>0) return false;
   monitor.count(cms2,type,"soft muon veto",weight);
 
 
-  //
-  if (numberOfExtraLeptons(i_hyp,10, useLHeleId, useMVAeleId, egammaMvaEleEstimator, useMVAmuId, muonIdMVA,muonMVAEstimator,  nullMu, nullEle)>0) return false;
-  monitor.count(cms2,type,"extra lepton veto",weight);
-
-
-  //
   if ( toptag(jetType(),i_hyp, 10, jet_corrector_pfL1FastJetL2L3) )  return false;
   monitor.count(cms2,type,"top tag",weight);
 
@@ -236,8 +239,8 @@ bool hypoSync(int i_hyp, double weight, bool realData)
  
 
   // 
-  if ( !passedMetRequirements(i_hyp,jet_corrector_pfL1FastJetL2L3) ) return false;
-  monitor.count(cms2,type,"Full MET cuts",weight);
+  //if ( !passedMetRequirements(i_hyp,jet_corrector_pfL1FastJetL2L3) ) return false;
+  //monitor.count(cms2,type,"Full MET cuts",weight);
 
 
   //
@@ -309,7 +312,6 @@ bool hypo (int i_hyp, double weight, bool realData)
   if ( nGenLeptons < 2 ) return;
   */
 
-  // if (cms2.evt_event()!=101838) return;
   HypothesisType type = getHypothesisTypeNew(i_hyp);
 
   // The event weight including the kFactor (scaled to 1 fb-1)
@@ -341,16 +343,16 @@ bool hypo (int i_hyp, double weight, bool realData)
   if ( cms2.hyp_lt_id()[i_hyp] * cms2.hyp_ll_id()[i_hyp] < 0 ) cuts_passed |= PASSED_Charge;
 
   //monitor.count(cms2,type,"baseline cuts",weight);
- 
-  if (gSystem->Getenv("Sync")) // Synchronization info
-    {
+  
+  if (gSystem->Getenv("Sync")) // Synchronization info 
+  {
       if ( !CheckCuts( PASSED_BaseLine|PASSED_Charge, cuts_passed ) ) return false;
       if (!hypoSync(i_hyp,weight,realData)) return false;
-    }
+  } 
 
-  if ( std::max(cms2.hyp_lt_p4().at(i_hyp).pt(),cms2.hyp_ll_p4().at(i_hyp).pt())<20 ) cuts_passed &= ~PASSED_BaseLine;
+  if ( std::max(cms2.hyp_lt_p4().at(i_hyp).pt(),cms2.hyp_ll_p4().at(i_hyp).pt())<20 ) cuts_passed &= ~PASSED_BaseLine; 
   
-  if ( cms2.hyp_p4()[i_hyp].mass() < 12) cuts_passed &= ~PASSED_BaseLine;
+//  if ( cms2.hyp_p4()[i_hyp].mass() < 12) cuts_passed &= ~PASSED_BaseLine;
 
   // check electron isolation and id (no selection at this point)
   // checkIsolation(i_hyp, weight);
@@ -463,7 +465,7 @@ bool hypo (int i_hyp, double weight, bool realData)
       cuts_passed |= PASSED_Skim3;
   }
 
-  if(! CheckCuts(pass_all, cuts_passed)) return false;
+  if(! CheckCuts(pass_all, cuts_passed)) return false; 
 
   monitor.count(cms2,type,"all cuts (including soft and extra lepton veto)",weight);
   return true;
@@ -522,15 +524,15 @@ void FillSmurfNtuple(SmurfTree& tree, unsigned int i_hyp,
 
   // SC eta for electrons and  mu p4 eta for muons
   if (ltIsFirst) {
-    tree.lep1DetEta_ =  abs(cms2.hyp_lt_id().at(i_hyp))==11 ?
-						cms2.els_etaSC().at(cms2.hyp_lt_index().at(i_hyp)) :  cms2.mus_p4().at(cms2.hyp_lt_index().at(i_hyp)).eta(); 
-    tree.lep2DetEta_ =  abs(cms2.hyp_ll_id().at(i_hyp))==11 ?
-						cms2.els_etaSC().at(cms2.hyp_ll_index().at(i_hyp)) :  cms2.mus_p4().at(cms2.hyp_ll_index().at(i_hyp)).eta(); 
+    //tree.lep1DetEta_ =  abs(cms2.hyp_lt_id().at(i_hyp))==11 ?
+    //						cms2.els_etaSC().at(cms2.hyp_lt_index().at(i_hyp)) :  cms2.mus_p4().at(cms2.hyp_lt_index().at(i_hyp)).eta(); 
+    //tree.lep2DetEta_ =  abs(cms2.hyp_ll_id().at(i_hyp))==11 ?
+    //						cms2.els_etaSC().at(cms2.hyp_ll_index().at(i_hyp)) :  cms2.mus_p4().at(cms2.hyp_ll_index().at(i_hyp)).eta(); 
   } else {
-    tree.lep1DetEta_ =  abs(cms2.hyp_ll_id().at(i_hyp))==11 ?
-						cms2.els_etaSC().at(cms2.hyp_ll_index().at(i_hyp)) :  cms2.mus_p4().at(cms2.hyp_ll_index().at(i_hyp)).eta(); 
-    tree.lep2DetEta_ =  abs(cms2.hyp_lt_id().at(i_hyp))==11 ?
-						cms2.els_etaSC().at(cms2.hyp_lt_index().at(i_hyp)) :  cms2.mus_p4().at(cms2.hyp_lt_index().at(i_hyp)).eta(); 
+    //tree.lep1DetEta_ =  abs(cms2.hyp_ll_id().at(i_hyp))==11 ?
+    //						cms2.els_etaSC().at(cms2.hyp_ll_index().at(i_hyp)) :  cms2.mus_p4().at(cms2.hyp_ll_index().at(i_hyp)).eta(); 
+    //tree.lep2DetEta_ =  abs(cms2.hyp_lt_id().at(i_hyp))==11 ?
+    //						cms2.els_etaSC().at(cms2.hyp_lt_index().at(i_hyp)) :  cms2.mus_p4().at(cms2.hyp_lt_index().at(i_hyp)).eta(); 
   }
 
   std::vector<Int_t> nullMu; // null identified muons 
@@ -901,8 +903,7 @@ void ScanChain( TChain* chain,
 	
           if (int(cms2.evt_run())<beginrun || int(cms2.evt_run())>=endrun) continue;
 	  if (cms2.evt_event()%prescale!=0) continue;
-	  //if (cms2.evt_event()!=20494961 && cms2.evt_event()!=787812949 && cms2.evt_event()!=73349194 && cms2.evt_event()!=68905080) continue;
-	  //cout << "event: " << cms2.evt_event() << endl;
+//	  if (cms2.evt_event()!=1289418) continue;    cout << "event: " << cms2.evt_event() << endl;
 
 	  // Select the good runs from the json file
 	  if(realData && cms2_json_file!="") {

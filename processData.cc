@@ -164,8 +164,8 @@ int main(int argc, char *argv[])
     //const std::string cms2_json = "files/Cert_190456-195396_8TeV_PromptReco_Collisions12_JSON_v2.jmu";
     //ProcessSample(samples, SmurfTree::data, 3.1, -1, -1, false, true, "");
     
-	ProcessSample("/nfs-7/userdata/jaehyeok/WWTo2L2Nu_TuneZ2star_8TeV_pythia6_tauola_Summer12-PU_S7_START52_V9-v1/V05-02-28/vvfilter/merged_ntuple.root", 
-		  SmurfTree::qqww, integratedLumi, -1, -1);
+	//ProcessSample("data/post_ntuple.root", SmurfTree::qqww, 1., -1, -1, false, false, "");
+	ProcessSample("data/post_Slimntuple_START53_V15.root", SmurfTree::qqww, 1., -1, -1, false, false, "");
   }
 
   if (runWW)
