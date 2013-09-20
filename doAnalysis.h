@@ -8,7 +8,7 @@
 #include "TChain.h"
 #include <fstream>
 #include <vector>
-#include "../../../Smurf/Core/SmurfTree.h"
+#include "../Smurf/Core/SmurfTree.h"
 
 #include "../HWW2012CORE/analysisEnums.h"
 
